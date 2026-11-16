@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Счётчик отжиманий</title>
+<style>
+:root{--bg:#ecefe8;--ink:#17232b;--mut:#5d6b70;--acc:#2447ff;--card:#fff;--ok:#12805c}
+@media (prefers-color-scheme:dark){:root{--bg:#10161a;--ink:#e8ece6;--mut:#8fa0a6;--acc:#7f95ff;--card:#18222a;--ok:#4cc9a0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif;min-height:100vh}
+main{max-width:980px;margin:0 auto;padding:20px;display:grid;gap:16px;grid-template-columns:1fr 280px}
+@media (max-width:760px){main{grid-template-columns:1fr}}
+h1{grid-column:1/-1;margin:0;font:700 28px/1.2 Georgia,serif}
+.stage{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:4/3}
+video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#fff;padding:20px;background:rgba(0,0,0,.55)}
+.panel{background:var(--card);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.count{font:700 110px/1 Georgia,serif;color:var(--acc);text-align:center;font-variant-numeric:tabular-nums}
+.state{text-align:center;font-weight:600;color:var(--mut)}
+.state.down{color:var(--ok)}
+.angle{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}
+.angle i{display:block;height:100%;width:0;background:var(--acc);transition:width .08s}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px;cursor:pointer;background:var(--acc);color:#fff}
+button.sec{background:transparent;color:var(--ink);border:1.5px solid var(--mut)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+small{color:var(--mut);display:block}
+input,select{font:inherit;padding:10px;border-radius:10px;border:1.5px solid var(--mut);background:var(--bg);color:var(--ink);width:100%}
+.row{display:flex;gap:8px}.row button{flex:1}
+.opp{display:flex;justify-content:space-between;align-items:baseline;border-top:1.5px solid var(--bg);padding-top:12px}
+.opp[hidden]{display:none}
+.opp b{font:700 40px/1 Georgia,serif;color:var(--ok)}
+.timer{text-align:center;font:700 22px/1.2 Georgia,serif;min-height:27px}
+:root{--warn:#b4440c}
+@media (prefers-color-scheme:dark){:root{--warn:#ffb27a}}
+.hint{text-align:center;color:var(--warn);min-height:22px;font-weight:600}
+.hud{position:absolute;top:0;left:0;right:0;padding:10px 12px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);pointer-events:none;z-index:2}
+.hud-t{text-align:center;font:700 36px/1.1 Georgia,serif;min-height:40px}
+.duel[hidden]{display:none}
+.duel-row{display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+.duel-row b{font:700 32px/1 Georgia,serif}
+.duel .me::before,.duel .op::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.duel .me::before{background:#3d6bff}.duel .op::before{background:#ff6a3d}
+.tug{height:16px;border-radius:8px;background:#ff6a3d;overflow:hidden;margin:4px 0;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+.tug i{display:block;height:100%;width:50%;background:#3d6bff;transition:width .3s}
+.result{position:absolute;inset:0;z-index:3;display:grid;place-content:center;gap:14px;text-align:center;background:rgba(10,16,20,.9);color:#fff;padding:20px}
+.result[hidden]{display:none}
+.result h2{margin:0;font:700 44px/1.1 Georgia,serif}
+.result h2.win{color:#5be3b0}.result h2.lose{color:#ff8a63}
+.rs{display:flex;justify-content:center;gap:48px}
+.rs span{display:block;font-size:14px;opacity:.85}
+.rs b{font:700 72px/1 Georgia,serif}
+.rs .a b{color:#8fa3ff}.rs .b b{color:#ff8a63}
+.result p{margin:0;min-height:24px}
+.result button{background:#fff;color:#111}
+.result button.sec{background:transparent;color:#fff;border-color:#fff}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<main>
+<h1>Счётчик отжиманий</h1>
+<div class="stage">
+  <video id="v" playsinline muted></video>
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div class="hud-t" id="tm"></div>
+    <div class="duel" id="opp" hidden>
+      <div class="duel-row"><span class="me" id="mn">Я</span><span class="op" id="on">Соперник</span></div>
+      <div class="tug"><i id="tugme"></i></div>
+      <div class="duel-row"><b id="mc">0</b><b id="oc">0</b></div>
+    </div>
+  </div>
+  <div class="result" id="res" hidden>
+    <h2 id="rt"></h2>
+    <div class="rs">
+      <div class="a"><span id="rn1">Я</span><b id="rc1">0</b></div>
+      <div class="b" id="side2"><span id="rn2">Соперник</span><b id="rc2">0</b></div>
+    </div>
+    <p id="rb"></p>
+    <div class="row"><button id="again">Реванш</button><button class="sec" id="close">Закрыть</button></div>
+  </div>
+  <div class="msg" id="msg">Нажмите «Старт» и разрешите доступ к камере</div>
+</div>
+<div class="panel">
+  <select id="ex" aria-label="Упражнение"><option value="push">Отжимания</option><option value="squat">Приседания</option></select>
+  <div class="count" id="n">0</div>
+  <div class="state" id="st">Ожидание</div>
+  <div class="hint" id="hint"></div>
+  <div class="angle" title="Угол сустава"><i id="bar"></i></div>
+  <small id="ang">Угол сустава: —</small>
+  <small id="stats"></small>
+  <button id="go">Старт</button>
+  <input id="nm" placeholder="Ваше имя" maxlength="20" aria-label="Ваше имя">
+  <input id="code" placeholder="Код комнаты (например, dima42)" maxlength="20" aria-label="Код комнаты">
+  <div class="row"><button class="sec" id="mk">Создать</button><button class="sec" id="jn">Войти</button></div>
+  <button id="race">Я готов к раунду (60 с)</button>
+  <small id="net">Один создаёт комнату, второй входит с тем же кодом.</small>
+  <button class="sec" id="rs">Сбросить</button>
+  <small>Поставьте камеру сбоку на уровне пола, чтобы в кадре были плечо, локоть и кисть. Отжимания: локоть меньше 90°, затем больше 155°. Приседания: колено меньше 100°, затем больше 160°; в кадре должны быть бёдра, колени и стопы.</small>
+</div>
+</main>
+<script type="module">
+import {PoseLandmarker,FilesetResolver} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+const $=id=>document.getElementById(id);
+const v=$("v"),c=$("c"),ctx=c.getContext("2d");
+let landmarker,running=false,state="up",count=0,smooth=null,lastTs=-1;
+const TH={push:[100,150],squat:[105,155]};const ex=()=>$("ex").value;
+
+function setMsg(t){const m=$("msg");m.textContent=t||"";m.style.display=t?"grid":"none"}
+function angle(a,b,d){
+  const r=Math.atan2(d.y-b.y,d.x-b.x)-Math.atan2(a.y-b.y,a.x-b.x);
+  let deg=Math.abs(r*180/Math.PI);return deg>180?360-deg:deg;
+}
+let AC;
+function beep(f=880,d=.12){
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==="suspended")AC.resume();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.connect(g);g.connect(AC.destination);o.frequency.value=f;g.gain.value=.15;o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+function setState(s){
+  state=s;const el=$("st");
+  el.textContent=s==="down"?"Внизу — выпрямляйтесь":"Вверху — опускайтесь";
+  el.className="state"+(s==="down"?" down":"");
+}
+const hist=[];let side=0,dip=180,lastRep=0,badPose=false;
+const med=a=>[...a].sort((x,y)=>x-y)[a.length>>1];
+const hint=t=>$("hint").textContent=t||"";
+function process(lm){
+  const squat=ex()==="squat";
+  const sets=squat?[[23,25,27],[24,26,28]]:[[11,13,15],[12,14,16]];
+  const vis=sets.map(q=>Math.min(...q.map(i=>lm[i].visibility??0)));
+  if(vis[1-side]>vis[side]+0.15)side=1-side;
+  if(vis[side]<0.45){$("ang").textContent="Нужные суставы не видны в кадре";hint("Отодвиньте камеру, чтобы было видно всё тело");return}
+  if(!squat){
+    const sh=lm[side?12:11],hp=lm[side?24:23];
+    if((hp.visibility??0)>0.4){
+      const tilt=Math.atan2(Math.abs(sh.y-hp.y),Math.abs(sh.x-hp.x))*180/Math.PI;
+      if(tilt>50){
+        badPose=true;state="up";dip=180;hist.length=0;smooth=null;
+        $("st").textContent="Примите упор лёжа";$("st").className="state";hint("Камера сбоку, тело горизонтально");return;
+      }
+    }
+  }
+  if(badPose){badPose=false;setState(state);hint("")}
+  hist.push(angle(...sets[side].map(i=>lm[i])));if(hist.length>5)hist.shift();
+  const a=med(hist);
+  smooth=smooth===null?a:smooth*0.5+a*0.5;
+  $("ang").textContent="Угол сустава: "+Math.round(smooth)+"°";
+  $("bar").style.width=Math.min(100,smooth/180*100)+"%";
+  const [DOWN,UP]=TH[ex()];
+  if(state==="up"){
+    dip=Math.min(dip,smooth);
+    if(smooth<DOWN){setState("down");hint("")}
+    else if(smooth>UP){
+      if(dip>=DOWN&&dip<DOWN+35)hint("Неполный повтор — опуститесь ниже");
+      dip=180;
+    }
+  }else if(smooth>UP){
+    const now=performance.now();
+    setState("up");dip=180;
+    if(now-lastRep<500)return;
+    if(race&&!(now>=race.start&&now<race.end))return;
+    lastRep=now;hint("");
+    count++;$("n").textContent=count;beep();send({t:"n",n:count});addRep();renderOpp();
+  }
+}
+function draw(lm){
+  c.width=v.videoWidth;c.height=v.videoHeight;ctx.clearRect(0,0,c.width,c.height);
+  const links=[[11,13],[13,15],[12,14],[14,16],[11,12],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]];
+  ctx.lineWidth=4;ctx.strokeStyle="#7f95ff";
+  for(const [a,b] of links){const p=lm[a],q=lm[b];if((p.visibility??0)<.4||(q.visibility??0)<.4)continue;
+    ctx.beginPath();ctx.moveTo(p.x*c.width,p.y*c.height);ctx.lineTo(q.x*c.width,q.y*c.height);ctx.stroke()}
+  ctx.fillStyle="#fff";
+  for(const i of [11,12,13,14,15,16]){const p=lm[i];if((p.visibility??0)<.4)continue;
+    ctx.beginPath();ctx.arc(p.x*c.width,p.y*c.height,6,0,7);ctx.fill()}
+}
+function loop(){
+  if(!running)return;
+  if(v.readyState>=2&&v.currentTime!==lastTs){
+    lastTs=v.currentTime;
+    const res=landmarker.detectForVideo(v,performance.now());
+    if(res.landmarks&&res.landmarks[0]){draw(res.landmarks[0]);process(res.landmarks[0])}
+    else{ctx.clearRect(0,0,c.width,c.height)}
+  }
+  requestAnimationFrame(loop);
+}
+async function start(){
+  $("go").disabled=true;
+  try{
+    setMsg("Загружаю модель…");
+    if(!landmarker){
+      const fs=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      const model="https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+      const make=d=>PoseLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:model,delegate:d},runningMode:"VIDEO",numPoses:1,minPoseDetectionConfidence:.6,minPosePresenceConfidence:.6,minTrackingConfidence:.6});
+      try{landmarker=await make("GPU")}catch(e){landmarker=await make("CPU")}
+    }
+    setMsg("Запрашиваю камеру…");
+    v.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:"user"}});
+    await v.play();
+    setMsg("");running=true;setState("up");$("go").textContent="Стоп";loop();
+  }catch(e){
+    setMsg("Не получилось запустить: "+(e.message||e)+". Проверьте доступ к камере и интернет.");
+  }
+  $("go").disabled=false;
+}
+function stop(){
+  running=false;
+  if(v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null}
+  ctx.clearRect(0,0,c.width,c.height);
+  $("go").textContent="Старт";$("st").textContent="Остановлено";$("st").className="state";
+  setMsg("Нажмите «Старт», чтобы продолжить");
+}
+$("go").onclick=()=>running?stop():start();
+$("rs").onclick=()=>{count=0;smooth=null;race=null;hist.length=0;dip=180;hint("");clearInterval(tick);$("tm").textContent="";$("res").hidden=true;myReady=false;$("race").disabled=false;$("race").textContent=READY;$("n").textContent=0;setState("up");send({t:"n",n:0});renderOpp()};
+$("nm").onchange=()=>{send({t:"hi",name:myName()});renderOpp()};
+
+/* ---------- история и серия дней ---------- */
+const KEY="pu_hist";
+const NAMES={push:"отжиманий",squat:"приседаний"};
+const dk=(d=new Date())=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function loadH(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){return {}}}
+function addRep(){
+  const h=loadH(),t=dk();h[t]=h[t]||{push:0,squat:0};h[t][ex()]++;
+  try{localStorage.setItem(KEY,JSON.stringify(h))}catch(e){}
+  renderStats();
+}
+function streak(h){
+  const has=d=>{const x=h[dk(d)];return x&&(x.push+x.squat)>0};
+  const d=new Date();if(!has(d))d.setDate(d.getDate()-1);
+  let n=0;while(has(d)){n++;d.setDate(d.getDate()-1)}return n;
+}
+function renderStats(){
+  const h=loadH(),t=h[dk()]||{push:0,squat:0},s=streak(h);
+  $("stats").textContent="Сегодня: "+t.push+" "+NAMES.push+", "+t.squat+" "+NAMES.squat+". Серия: "+s+" дн.";
+}
+$("ex").onchange=()=>$("rs").click();
+renderStats();
+
+/* ---------- онлайн (WebRTC через PeerJS) ---------- */
+let peer,conn,oppName="Соперник",oppCount=0,race=null,tick,isHost=false,myReady=false,oppReady=false,oppFinal=false;
+const myName=()=>$("nm").value.trim()||"Я";
+const send=m=>{if(conn&&conn.open)conn.send(m)};
+const setNet=t=>$("net").textContent=t;
+function renderOpp(){
+  $("mn").textContent=myName();$("mc").textContent=count;
+  $("on").textContent=oppName;$("oc").textContent=oppCount;
+  const t=count+oppCount;$("tugme").style.width=(t?count/t*100:50)+"%";
+}
+function bind(cn){
+  conn=cn;
+  cn.on("open",()=>{setNet("Соперник подключён");$("opp").hidden=false;$("race").disabled=false;
+    send({t:"hi",name:myName()});send({t:"n",n:count})});
+  cn.on("data",m=>{
+    if(m.t==="hi"){oppName=m.name||"Соперник"}
+    if(m.t==="n"){oppCount=m.n}
+    if(m.t==="ready"){oppReady=true;setNet("Соперник готов");tryLaunch()}
+    if(m.t==="final"){oppFinal=true;oppCount=m.n}
+    if(m.t==="start"){if(m.ex)$("ex").value=m.ex;beginRace();if(!running)setNet("Раунд идёт! Включите камеру кнопкой «Старт»")}
+    renderOpp();
+  });
+  cn.on("close",()=>{setNet("Соединение потеряно");myReady=oppReady=false;$("race").disabled=false;$("race").textContent=READY});
+}
+function room(host){
+  const code=$("code").value.trim().toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(code.length<3){setNet("Код: минимум 3 буквы или цифры");return}
+  const id="pushup-"+code;
+  if(peer)peer.destroy();isHost=host;myReady=oppReady=false;
+  if(host){
+    peer=new Peer(id);
+    peer.on("connection",bind);
+    peer.on("open",()=>setNet("Комната создана. Ждём друга…"));
+  }else{
+    peer=new Peer();
+    peer.on("open",()=>{setNet("Подключаюсь…");bind(peer.connect(id,{reliable:true}))});
+  }
+  peer.on("error",e=>setNet(e.type==="unavailable-id"?"Код занят, возьмите другой":e.type==="peer-unavailable"?"Комната не найдена":"Ошибка сети: "+e.type));
+}
+const READY="Я готов к раунду (60 с)",EXN={push:"Отжимания",squat:"Приседания"};
+function loadBest(){try{return JSON.parse(localStorage.getItem("pu_best")||"{}")}catch(e){return {}}}
+function saveBest(b){try{localStorage.setItem("pu_best",JSON.stringify(b))}catch(e){}}
+function beginRace(){
+  myReady=oppReady=false;oppFinal=false;$("res").hidden=true;
+  $("race").textContent=READY;$("race").disabled=false;
+  count=0;oppCount=0;smooth=null;hist.length=0;dip=180;hint("");$("n").textContent=0;setState("up");renderOpp();
+  const t0=performance.now()+5000;
+  race={start:t0,end:t0+60000,ex:ex(),over:false,shown:false,started:false,lastSec:null};
+  clearInterval(tick);tick=setInterval(updateTimer,100);updateTimer();
+}
+function launch(){send({t:"start",ex:ex()});beginRace()}
+function tryLaunch(){if(myReady&&oppReady&&isHost)launch()}
+function updateTimer(){
+  if(!race)return;
+  const now=performance.now(),el=$("tm");
+  if(now<race.start){
+    const sec=Math.ceil((race.start-now)/1000);
+    el.textContent=sec;
+    if(race.lastSec!==sec){race.lastSec=sec;if(sec<=3)beep(660,.1)}
+  }else if(now<race.end){
+    if(!race.started){race.started=true;beep(1200,.4)}
+    el.textContent=Math.ceil((race.end-now)/1000)+" с";
+  }else{
+    el.textContent="Время!";
+    const duel=conn&&conn.open;
+    if(!race.over){race.over=true;race.overAt=now;beep(1200,.6);send({t:"final",n:count})}
+    if(!race.shown&&(!duel||oppFinal||now>race.overAt+2000)){race.shown=true;clearInterval(tick);showResult(duel)}
+  }
+}
+function showResult(duel){
+  const e=race.ex,best=loadBest(),mine=count,opp=oppCount;
+  const title=!duel?"Раунд окончен":mine>opp?"Победа!":mine<opp?"Поражение":"Ничья";
+  $("rt").textContent=title;$("rt").className=duel&&mine>opp?"win":duel&&mine<opp?"lose":"";
+  $("rn1").textContent=myName();$("rc1").textContent=mine;
+  $("side2").hidden=!duel;$("rn2").textContent=oppName;$("rc2").textContent=opp;
+  let note=EXN[e]+", 60 секунд. ";
+  if(mine>(best[e]||0)){note+="Новый личный рекорд!";best[e]=mine;saveBest(best)}
+  else if(best[e])note+="Ваш рекорд: "+best[e];
+  $("rb").textContent=note;$("res").hidden=false;
+}
+$("mk").onclick=()=>room(true);
+$("jn").onclick=()=>room(false);
+$("race").onclick=()=>{
+  if(!running){setNet("Сначала нажмите «Старт» и включите камеру");return}
+  if(race&&!race.shown)return;
+  if(!(conn&&conn.open)){launch();return}
+  myReady=true;$("race").textContent="Ждём соперника…";$("race").disabled=true;
+  send({t:"ready"});tryLaunch();
+};
+$("again").onclick=()=>{$("res").hidden=true;race=null;$("tm").textContent="";$("race").click()};
+$("close").onclick=()=>{$("res").hidden=true;race=null;$("tm").textContent=""};
+</script>
+</body>
+</html>
