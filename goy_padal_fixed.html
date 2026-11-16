@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0e12">
+<title>Гойская падаль соревнуется</title>
+<style>
+:root {
+  --bg: #f0f2ef;
+  --ink: #0f1419;
+  --mut: #6b7a82;
+  --line: rgba(15, 20, 25, 0.08);
+  --acc: #2563eb;
+  --acc-press: #1d4ed8;
+  --card: #fff;
+  --ok: #059669;
+  --warn: #d97706;
+  --radius: 20px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --display: "SF Pro Display", -apple-system, BlinkMacSystemFont, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e12;
+    --ink: #f0f3f1;
+    --mut: #8b9aa3;
+    --line: rgba(255, 255, 255, 0.08);
+    --acc: #3b82f6;
+    --acc-press: #2563eb;
+    --card: #141a21;
+    --ok: #34d399;
+    --warn: #fbbf24;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.4 var(--font);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 12px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Title — quiet */
+.brand {
+  text-align: center;
+  padding: 4px 0 2px;
+  font: 600 15px/1.2 var(--font);
+  letter-spacing: -0.01em;
+  color: var(--mut);
+}
+
+/* ===== STAGE ===== */
+.stage {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  max-height: min(68dvh, 580px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+@media (min-width: 520px) {
+  .stage { aspect-ratio: 4 / 3; max-height: min(62dvh, 520px); }
+}
+video, canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* Empty / loading message */
+.msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #fff;
+  padding: 28px;
+  background: rgba(0,0,0,.55);
+  font-size: 15px;
+  line-height: 1.45;
+  z-index: 1;
+}
+
+/* Top: only timer + duel when active */
+.hud {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 14px 14px 0;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0,0,0,.7);
+  pointer-events: none;
+  z-index: 2;
+}
+.hud-t {
+  text-align: center;
+  font: 700 34px/1 var(--display);
+  min-height: 0;
+  letter-spacing: -0.03em;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.hud-t.on { opacity: 1; }
+.duel[hidden] { display: none; }
+.duel {
+  margin-top: 8px;
+  background: rgba(0,0,0,.45);
+  border-radius: 14px;
+  padding: 10px 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.duel-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 12px;
+  opacity: .9;
+}
+.duel-row b {
+  font: 700 24px/1 var(--display);
+  letter-spacing: -0.02em;
+}
+.duel .me::before,
+.duel .op::before {
+  content: "";
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+.duel .me::before { background: #60a5fa; }
+.duel .op::before { background: #fb923c; }
+.tug {
+  height: 8px;
+  border-radius: 4px;
+  background: #fb923c;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.tug i {
+  display: block;
+  height: 100%;
+  width: 50%;
+  background: #60a5fa;
+  transition: width .25s ease;
+}
+
+/* Center feedback — the hero */
+.feedback {
+  position: absolute;
+  left: 0; right: 0;
+  top: 38%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(0,0,0,.75);
+  pointer-events: none;
+  z-index: 2;
+  padding: 0 20px;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.stage.camera-ready .feedback { opacity: 1; }
+.count {
+  font: 700 88px/0.9 var(--display);
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  transition: transform .12s ease;
+}
+.count.pop { transform: scale(1.08); }
+.state {
+  margin-top: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  opacity: .85;
+  letter-spacing: 0.01em;
+}
+.state.down { color: #6ee7b7; opacity: 1; }
+.hint {
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #fcd34d;
+  min-height: 0;
+}
+.gauge-wrap {
+  margin: 14px auto 0;
+  width: min(160px, 48%);
+}
+.gauge {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.18);
+  overflow: hidden;
+}
+.gauge i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #fff;
+  border-radius: 3px;
+  transition: width .07s linear;
+  opacity: .9;
+}
+
+/* Bottom controls — thumb zone */
+.controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 3;
+  padding: 16px 14px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.4) 55%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.controls-row {
+  display: flex;
+  gap: 8px;
+}
+.pill {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .1s, background .15s, opacity .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pill:active { transform: scale(0.97); }
+.pill:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+.select-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.select-wrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 48px;
+  padding: 0 32px 0 14px;
+  border-radius: 14px;
+  border: 0;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+.select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(255,255,255,.7);
+  transform: translateY(-30%);
+  pointer-events: none;
+}
+.select-wrap select option { color: #111; background: #fff; }
+
+.btn-start {
+  flex: 1;
+  height: 48px;
+  background: #fff;
+  color: #0f1419;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.btn-start.is-on {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,.25);
+}
+
+.btn-race {
+  height: 44px;
+  width: 100%;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  font-size: 14px;
+  border: 1.5px solid rgba(255,255,255,.2);
+}
+.btn-race:disabled { opacity: .4; }
+
+/* Result */
+.result {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
+  background: rgba(8, 12, 16, 0.94);
+  color: #fff;
+  padding: 28px;
+  backdrop-filter: blur(12px);
+}
+.result[hidden] { display: none; }
+.result h2 {
+  margin: 0;
+  font: 700 36px/1.1 var(--display);
+  letter-spacing: -0.03em;
+}
+.result h2.win { color: #6ee7b7; }
+.result h2.lose { color: #fb923c; }
+.result h2.draw { color: #93c5fd; }
+.rs {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+.rs span { display: block; font-size: 12px; opacity: .7; margin-bottom: 2px; }
+.rs b { font: 700 52px/1 var(--display); letter-spacing: -0.03em; }
+.rs .a b { color: #93c5fd; }
+.rs .b b { color: #fdba74; }
+.result p { margin: 0; font-size: 14px; opacity: .85; }
+.result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.result-actions button {
+  height: 44px;
+  min-width: 120px;
+  border-radius: 14px;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.result-actions .primary { background: #fff; color: #0f1419; }
+.result-actions .ghost {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,.3);
+}
+
+/* ===== BELOW ===== */
+.sheet {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 4px 0;
+  box-shadow: 0 4px 24px rgba(0,0,0,.06);
+}
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  padding: 14px 8px;
+  text-align: center;
+}
+.stat b {
+  display: block;
+  font: 700 22px/1.1 var(--display);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.stat span {
+  font-size: 11px;
+  color: var(--mut);
+  font-weight: 500;
+  margin-top: 2px;
+  display: block;
+}
+.sep {
+  height: 1px;
+  background: var(--line);
+  margin: 0 16px;
+}
+.block {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.block-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mut);
+  letter-spacing: 0.02em;
+}
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+input {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  width: 100%;
+}
+input:focus {
+  outline: none;
+  border-color: var(--acc);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.actions button {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.actions button:active { background: var(--line); }
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--mut);
+  min-height: 20px;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--mut);
+  flex-shrink: 0;
+}
+.dot.on { background: var(--ok); }
+.dot.wait { background: var(--warn); }
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px 14px;
+}
+.link {
+  background: none;
+  border: 0;
+  color: var(--mut);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.link:active { opacity: .6; }
+.hint-text {
+  font-size: 12px;
+  color: var(--mut);
+  line-height: 1.4;
+  margin: 0;
+  padding: 0 16px 14px;
+  opacity: .85;
+}
+
+/* Consistent tactile feedback for every button */
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s cubic-bezier(.2,.8,.2,1), filter .12s ease, box-shadow .12s ease;
+}
+button:not(:disabled):active {
+  transform: translateY(2px) scale(.97);
+  filter: brightness(.9);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.16);
+}
+button:focus-visible {
+  outline: 3px solid rgba(59,130,246,.65);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none !important; }
+}
+@media (max-width: 360px) {
+  .count { font-size: 72px; }
+  .btn-start { font-size: 14px; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<main>
+  <div class="brand">Гойская падаль соревнуется</div>
+
+  <div class="stage" id="stage">
+    <video id="v" playsinline muted></video>
+    <canvas id="c"></canvas>
+
+    <div class="hud">
+      <div class="hud-t" id="tm"></div>
+      <div class="duel" id="opp" hidden>
+        <div class="duel-row">
+          <span class="me" id="mn">Я</span>
+          <span class="op" id="on">Соперник</span>
+        </div>
+        <div class="tug"><i id="tugme"></i></div>
+        <div class="duel-row">
+          <b id="mc">0</b>
+          <b id="oc">0</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="feedback">
+      <div class="count" id="n"></div>
+      <div class="state" id="st">—</div>
+      <div class="hint" id="hint"></div>
+      <div class="gauge-wrap">
+        <div class="gauge"><i id="bar"></i></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <div class="select-wrap">
+          <select id="ex" aria-label="Упражнение">
+            <option value="push">Отжимания</option>
+            <option value="squat">Приседания</option>
+          </select>
+        </div>
+        <button class="pill btn-start" id="go">Подключить камеру</button>
+      </div>
+      <button class="pill btn-race" id="race">Старт</button>
+    </div>
+
+    <div class="result" id="res" hidden>
+      <h2 id="rt"></h2>
+      <div class="rs">
+        <div class="a"><span id="rn1">Я</span><b id="rc1">0</b></div>
+        <div class="b" id="side2"><span id="rn2">Соперник</span><b id="rc2">0</b></div>
+      </div>
+      <p id="rb"></p>
+      <div class="result-actions">
+        <button class="primary" id="again">Ещё раз</button>
+        <button class="ghost" id="close">Закрыть</button>
+      </div>
+    </div>
+
+    <div class="msg" id="msg">Нажмите «Подключить камеру» и разрешите доступ</div>
+  </div>
+
+  <div class="sheet">
+    <div class="stats">
+      <div class="stat">
+        <b id="statToday">0</b>
+        <span>сегодня</span>
+      </div>
+      <div class="stat">
+        <b id="statStreak">0</b>
+        <span>серия</span>
+      </div>
+      <div class="stat">
+        <b id="statBest">—</b>
+        <span>рекорд</span>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="block">
+      <div class="block-title">Дуэль</div>
+      <div class="fields">
+        <input id="nm" placeholder="Имя" maxlength="20" autocomplete="nickname">
+        <input id="code" placeholder="Код комнаты" maxlength="20" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button id="mk">Создать</button>
+        <button id="jn">Войти</button>
+      </div>
+      <div class="status">
+        <span class="dot" id="netdot"></span>
+        <span id="nettxt">Введите код и создайте или войдите</span>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <button class="link" id="rs">Сбросить счёт</button>
+    </div>
+    <p class="hint-text">Телефон сбоку. В кадре: плечо–локоть–кисть или бедро–колено–стопа. Считаются только полные повторы.</p>
+  </div>
+</main>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+const v = $("v"), c = $("c"), ctx = c.getContext("2d", { alpha: true });
+
+let landmarker = null;
+let running = false;
+let state = "up";
+let count = 0;
+let smooth = null;
+let lastTs = -1;
+let rafId = 0;
+
+const TH = { push: [95, 155], squat: [100, 160] };
+const ex = () => $("ex").value;
+
+function setMsg(t) {
+  const m = $("msg");
+  m.textContent = t || "";
+  m.style.display = t ? "grid" : "none";
+}
+
+function angle(a, b, d) {
+  const r = Math.atan2(d.y - b.y, d.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+  let deg = Math.abs(r * 180 / Math.PI);
+  return deg > 180 ? 360 - deg : deg;
+}
+
+let AC = null;
+function beep(f = 880, d = 0.1) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.14, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + d);
+    o.start(); o.stop(AC.currentTime + d);
+  } catch (_) {}
+}
+
+function setState(s) {
+  state = s;
+  const el = $("st");
+  if (!running) {
+    el.textContent = "—";
+    el.className = "state";
+    return;
+  }
+  el.textContent = s === "down" ? "Вверх" : "Вниз";
+  el.className = "state" + (s === "down" ? " down" : "");
+}
+
+const hist = [];
+let side = 0, dip = 180, lastRep = 0, badPose = false;
+const med = a => { const s = [...a].sort((x,y)=>x-y); return s[s.length>>1]; };
+const hint = t => { $("hint").textContent = t || ""; };
+
+function process(lm) {
+  const squat = ex() === "squat";
+  const sets = squat ? [[23,25,27],[24,26,28]] : [[11,13,15],[12,14,16]];
+  const vis = sets.map(q => Math.min(...q.map(i => lm[i].visibility ?? 0)));
+  if (vis[1-side] > vis[side] + 0.18) side = 1 - side;
+
+  if (vis[side] < 0.42) {
+    hint("Отойдите, чтобы было видно тело");
+    return;
+  }
+
+  if (!squat) {
+    const sh = lm[side ? 12 : 11], hp = lm[side ? 24 : 23];
+    if ((hp.visibility ?? 0) > 0.35) {
+      const tilt = Math.atan2(Math.abs(sh.y - hp.y), Math.abs(sh.x - hp.x)) * 180 / Math.PI;
+      if (tilt > 48) {
+        badPose = true; state = "up"; dip = 180; hist.length = 0; smooth = null;
+        $("st").textContent = "Упор лёжа";
+        $("st").className = "state";
+        hint("Тело горизонтально, камера сбоку");
+        return;
+      }
+    }
+  }
+
+  if (badPose) { badPose = false; setState(state); hint(""); }
+
+  hist.push(angle(...sets[side].map(i => lm[i])));
+  if (hist.length > 5) hist.shift();
+  const a = med(hist);
+  smooth = smooth === null ? a : smooth * 0.55 + a * 0.45;
+  $("bar").style.width = Math.min(100, (smooth / 180) * 100) + "%";
+
+  const [DOWN, UP] = TH[ex()];
+
+  if (state === "up") {
+    dip = Math.min(dip, smooth);
+    if (smooth < DOWN) { setState("down"); hint(""); }
+    else if (smooth > UP) {
+      if (dip >= DOWN && dip < DOWN + 32) hint("Ниже");
+      dip = 180;
+    }
+  } else if (smooth > UP) {
+    const now = performance.now();
+    setState("up"); dip = 180;
+    if (now - lastRep < 420) return;
+    if (race && !(now >= race.start && now < race.end)) return;
+    lastRep = now;
+    hint("");
+    count++;
+    $("n").textContent = count;
+    $("n").classList.remove("pop");
+    void $("n").offsetWidth;
+    $("n").classList.add("pop");
+    beep(920, 0.09);
+    send({ t: "n", n: count });
+    addRep();
+    renderOpp();
+    updateStatsUI();
+  }
+}
+
+function draw(lm) {
+  const w = v.videoWidth, h = v.videoHeight;
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  ctx.clearRect(0, 0, w, h);
+  const links = [[11,13],[13,15],[12,14],[14,16],[11,12],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]];
+  ctx.lineWidth = Math.max(3, w * 0.005);
+  ctx.strokeStyle = "rgba(147,197,253,.85)";
+  ctx.lineCap = "round";
+  for (const [a,b] of links) {
+    const p = lm[a], q = lm[b];
+    if ((p.visibility??0) < .35 || (q.visibility??0) < .35) continue;
+    ctx.beginPath();
+    ctx.moveTo(p.x*w, p.y*h);
+    ctx.lineTo(q.x*w, q.y*h);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#fff";
+  const r = Math.max(3.5, w * 0.007);
+  for (const i of [11,12,13,14,15,16,23,24,25,26,27,28]) {
+    const p = lm[i];
+    if ((p.visibility??0) < .35) continue;
+    ctx.beginPath();
+    ctx.arc(p.x*w, p.y*h, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function loop() {
+  if (!running) return;
+  rafId = requestAnimationFrame(loop);
+  if (v.readyState < 2 || v.currentTime === lastTs) return;
+  lastTs = v.currentTime;
+  const res = landmarker.detectForVideo(v, performance.now());
+  if (res.landmarks?.[0]) {
+    draw(res.landmarks[0]);
+    process(res.landmarks[0]);
+  } else ctx.clearRect(0, 0, c.width, c.height);
+}
+
+function cameraErrorText(e) {
+  const name = e && e.name;
+  if (!window.isSecureContext && location.hostname !== "localhost")
+    return "Камера доступна только на защищённой странице HTTPS (или localhost). Откройте приложение по HTTPS.";
+  if (!navigator.mediaDevices?.getUserMedia)
+    return "Браузер не поддерживает доступ к камере. Откройте страницу в актуальном Chrome или Safari.";
+  if (name === "NotAllowedError" || name === "SecurityError")
+    return "Браузер запретил доступ к камере. Разрешите камеру для этого сайта в настройках браузера и попробуйте снова.";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError")
+    return "Камера не найдена. Подключите камеру или проверьте, видит ли её система.";
+  if (name === "NotReadableError" || name === "TrackStartError")
+    return "Не удалось включить камеру: возможно, её уже использует другое приложение. Закройте его и повторите попытку.";
+  if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError")
+    return "Камера не поддерживает выбранный режим. Попробуйте другую камеру.";
+  if (name === "AbortError")
+    return "Запуск камеры был прерван. Нажмите «Подключить камеру» ещё раз.";
+  return "Не удалось подключить камеру" + (name ? " (" + name + ")" : ". Проверьте разрешения браузера и подключение камеры.");
+}
+
+async function start() {
+  const button = $("go");
+  button.disabled = true;
+  let stream = null;
+  let phase = "camera";
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("media-unsupported");
+    if (!window.isSecureContext && location.hostname !== "localhost") throw new Error("secure-context");
+    phase = "model";
+    if (!landmarker) {
+      setMsg("Загрузка распознавания…");
+      const fs = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      const model = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+      const make = d => PoseLandmarker.createFromOptions(fs, {
+        baseOptions: { modelAssetPath: model, delegate: d },
+        runningMode: "VIDEO", numPoses: 1,
+        minPoseDetectionConfidence: .55, minPosePresenceConfidence: .55, minTrackingConfidence: .55
+      });
+      try { landmarker = await make("GPU"); } catch { landmarker = await make("CPU"); }
+    }
+    phase = "camera";
+    setMsg("Ожидаем разрешение на камеру…");
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+      audio: false
+    });
+    v.srcObject = stream;
+    await v.play();
+    setMsg("");
+    running = true;
+    $("stage").classList.add("camera-ready");
+    $("n").textContent = count;
+    setState("up");
+    button.textContent = "Отключить камеру";
+    button.classList.add("is-on");
+    lastTs = -1;
+    loop();
+  } catch (e) {
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    if (v.srcObject) {
+      v.srcObject.getTracks().forEach(track => track.stop());
+      v.srcObject = null;
+    }
+    console.error("Camera connection failed:", e);
+    if (phase === "model") {
+      setMsg("Не удалось загрузить модуль распознавания. Проверьте интернет-соединение и обновите страницу.");
+    } else {
+      setMsg(e && (e.message === "media-unsupported" || e.message === "secure-context") ? cameraErrorText(null) : cameraErrorText(e));
+    }
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function stop() {
+  running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = 0;
+  if (v.srcObject) {
+    v.srcObject.getTracks().forEach(t => t.stop());
+    v.srcObject = null;
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+  $("stage").classList.remove("camera-ready");
+  $("go").textContent = "Подключить камеру";
+  $("go").classList.remove("is-on");
+  $("st").textContent = "—";
+  $("st").className = "state";
+  setMsg("Нажмите «Подключить камеру» и разрешите доступ");
+}
+
+$("go").onclick = () => running ? stop() : start();
+
+$("rs").onclick = () => {
+  count = 0; smooth = null; race = null; hist.length = 0; dip = 180; hint("");
+  clearInterval(tick);
+  $("tm").textContent = ""; $("tm").classList.remove("on");
+  $("res").hidden = true;
+  myReady = false;
+  $("race").disabled = false; $("race").textContent = "Старт";
+  $("n").textContent = 0;
+  setState("up");
+  send({ t: "n", n: 0 });
+  renderOpp();
+  updateStatsUI();
+};
+
+$("nm").onchange = () => { send({ t: "hi", name: myName() }); renderOpp(); };
+
+const KEY = "pu_hist_v2", BEST_KEY = "pu_best_v2";
+const dk = (d = new Date()) => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+
+function loadH() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } }
+function addRep() {
+  const h = loadH(), t = dk();
+  h[t] = h[t] || { push: 0, squat: 0 };
+  h[t][ex()]++;
+  try { localStorage.setItem(KEY, JSON.stringify(h)); } catch {}
+}
+function streak(h) {
+  const has = d => { const x = h[dk(d)]; return x && x.push + x.squat > 0; };
+  const d = new Date();
+  if (!has(d)) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (has(d)) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+function loadBest() { try { return JSON.parse(localStorage.getItem(BEST_KEY) || "{}"); } catch { return {}; } }
+function saveBest(b) { try { localStorage.setItem(BEST_KEY, JSON.stringify(b)); } catch {} }
+
+function updateStatsUI() {
+  const h = loadH(), t = h[dk()] || { push: 0, squat: 0 }, s = streak(h), best = loadBest(), e = ex();
+  $("statToday").textContent = t.push + t.squat;
+  $("statStreak").textContent = s;
+  $("statBest").textContent = best[e] || "—";
+}
+$("ex").onchange = () => { $("rs").click(); updateStatsUI(); };
+updateStatsUI();
+
+/* Online */
+let peer = null, conn = null, oppName = "Соперник", oppCount = 0;
+let race = null, tick = null, isHost = false, myReady = false, oppReady = false, oppFinal = false;
+
+const myName = () => $("nm").value.trim() || "Я";
+const send = m => { if (conn && conn.open) conn.send(m); };
+
+function setNet(t, status = "") {
+  $("netdot").className = "dot" + (status ? " " + status : "");
+  $("nettxt").textContent = t;
+}
+
+function renderOpp() {
+  $("mn").textContent = myName();
+  $("mc").textContent = count;
+  $("on").textContent = oppName;
+  $("oc").textContent = oppCount;
+  const t = count + oppCount;
+  $("tugme").style.width = (t ? count / t * 100 : 50) + "%";
+}
+
+function bind(cn) {
+  conn = cn;
+  cn.on("open", () => {
+    setNet("Подключено", "on");
+    $("opp").hidden = false;
+    $("race").disabled = false;
+    send({ t: "hi", name: myName() });
+    send({ t: "n", n: count });
+  });
+  cn.on("data", m => {
+    if (!m || typeof m !== "object") return;
+    if (m.t === "hi") oppName = m.name || "Соперник";
+    if (m.t === "n") oppCount = m.n | 0;
+    if (m.t === "ready") { oppReady = true; setNet("Соперник готов", "wait"); tryLaunch(); }
+    if (m.t === "final") { oppFinal = true; oppCount = m.n | 0; }
+    if (m.t === "start") {
+      if (m.ex) $("ex").value = m.ex;
+      beginRace();
+      if (!running) setNet("Раунд! Включите камеру", "wait");
+    }
+    renderOpp();
+  });
+  cn.on("close", () => {
+    setNet("Связь с соперником потеряна", "");
+    myReady = oppReady = false;
+    $("race").disabled = false;
+    if (!race || race.shown) $("race").textContent = "Старт";
+  });
+  cn.on("error", e => setNet("Ошибка соединения: " + (e?.type || "проверьте интернет"), ""));
+}
+
+function room(host) {
+  if (typeof Peer === "undefined") {
+    setNet("Не загрузился модуль онлайн-связи. Проверьте интернет и обновите страницу.", "");
+    return;
+  }
+  const code = $("code").value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (code.length < 3) { setNet("Код: минимум 3 символа"); return; }
+  const id = "goypadal-" + code;
+  if (peer) try { peer.destroy(); } catch {}
+  isHost = host; myReady = oppReady = false;
+
+  if (host) {
+    peer = new Peer(id);
+    peer.on("connection", bind);
+    peer.on("open", () => setNet("Ждём соперника…", "wait"));
+  } else {
+    peer = new Peer();
+    peer.on("open", () => {
+      setNet("Подключение…", "wait");
+      bind(peer.connect(id, { reliable: true }));
+    });
+  }
+  peer.on("error", e => {
+    const messages = {
+      "unavailable-id": "Этот код комнаты уже занят. Выберите другой код.",
+      "peer-unavailable": "Комната не найдена. Проверьте код или попросите соперника создать комнату.",
+      "network": "Проблема с интернет-соединением. Проверьте сеть и попробуйте снова.",
+      "server-error": "Сервер онлайн-связи временно недоступен. Попробуйте позже.",
+      "socket-error": "Не удалось связаться с сервером онлайн-связи.",
+      "socket-closed": "Соединение с сервером онлайн-связи закрыто.",
+      "disconnected": "Связь с сервером потеряна. Переподключитесь.",
+      "browser-incompatible": "Браузер не поддерживает онлайн-соединение.",
+      "webrtc": "Браузеру не удалось установить связь с соперником. Проверьте сеть и разрешения."
+    };
+    setNet(messages[e.type] || ("Ошибка подключения: " + (e.type || "неизвестная ошибка")), "");
+  });
+}
+
+const READY = "Старт";
+const EXN = { push: "Отжимания", squat: "Приседания" };
+
+function beginRace() {
+  myReady = oppReady = false; oppFinal = false;
+  $("res").hidden = true;
+  $("race").textContent = "Подготовка…"; $("race").disabled = true;
+  count = 0; oppCount = 0; smooth = null; hist.length = 0; dip = 180; hint("");
+  $("n").textContent = 0; setState("up"); renderOpp();
+  const t0 = performance.now() + 5000;
+  race = { start: t0, end: t0 + 60000, ex: ex(), over: false, shown: false, started: false, lastSec: null, overAt: 0 };
+  clearInterval(tick);
+  tick = setInterval(updateTimer, 80);
+  updateTimer();
+}
+
+function launch() { send({ t: "start", ex: ex() }); beginRace(); }
+function tryLaunch() { if (myReady && oppReady && isHost) launch(); }
+
+function updateTimer() {
+  if (!race) return;
+  const now = performance.now(), el = $("tm");
+  if (now < race.start) {
+    const sec = Math.ceil((race.start - now) / 1000);
+    el.textContent = sec;
+    $("race").textContent = "Старт через " + sec;
+    el.classList.add("on");
+    if (race.lastSec !== sec) { race.lastSec = sec; if (sec <= 3) beep(620, 0.08); }
+  } else if (now < race.end) {
+    if (!race.started) { race.started = true; beep(1100, 0.35); }
+    $("race").textContent = "Раунд идёт…";
+    el.textContent = Math.ceil((race.end - now) / 1000);
+    el.classList.add("on");
+  } else {
+    el.textContent = "0";
+    const duel = conn && conn.open;
+    if (!race.over) {
+      race.over = true; race.overAt = now; beep(1100, 0.5);
+      send({ t: "final", n: count });
+    }
+    if (!race.shown && (!duel || oppFinal || now > race.overAt + 1800)) {
+      race.shown = true; clearInterval(tick); showResult(duel);
+    }
+  }
+}
+
+function showResult(duel) {
+  const e = race.ex, best = loadBest(), mine = count, opp = oppCount;
+  let title, cls;
+  if (!duel) { title = "Готово"; cls = ""; }
+  else if (mine > opp) { title = "Победа"; cls = "win"; }
+  else if (mine < opp) { title = "Поражение"; cls = "lose"; }
+  else { title = "Ничья"; cls = "draw"; }
+  $("rt").textContent = title; $("rt").className = cls;
+  $("rn1").textContent = myName(); $("rc1").textContent = mine;
+  $("side2").hidden = !duel; $("rn2").textContent = oppName; $("rc2").textContent = opp;
+  let note = EXN[e] + " · 60 с";
+  if (mine > (best[e] || 0)) { note += " · новый рекорд"; best[e] = mine; saveBest(best); }
+  else if (best[e]) note += " · рекорд " + best[e];
+  $("rb").textContent = note;
+  $("res").hidden = false;
+  $("tm").classList.remove("on");
+  $("race").disabled = false;
+  $("race").textContent = "Старт";
+  updateStatsUI();
+}
+
+$("mk").onclick = () => room(true);
+$("jn").onclick = () => room(false);
+
+$("race").onclick = () => {
+  if (!running) { setNet("Сначала подключите камеру"); return; }
+  if (race && !race.shown) return;
+  if (!(conn && conn.open)) { launch(); return; }
+  myReady = true;
+  $("race").textContent = "Ждём…";
+  $("race").disabled = true;
+  send({ t: "ready" });
+  tryLaunch();
+};
+
+$("again").onclick = () => {
+  $("res").hidden = true; race = null; $("tm").textContent = ""; $("tm").classList.remove("on");
+  $("race").click();
+};
+$("close").onclick = () => {
+  $("res").hidden = true; race = null; $("tm").textContent = ""; $("tm").classList.remove("on");
+};
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && AC?.state === "running") AC.suspend();
+  else if (AC?.state === "suspended") AC.resume();
+});
+</script>
+</body>
+</html>
