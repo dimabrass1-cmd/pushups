@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0e12">
+<title>Гойская падаль соревнуется</title>
+<style>
+:root {
+  --bg: #f0f2ef;
+  --ink: #0f1419;
+  --mut: #6b7a82;
+  --line: rgba(15, 20, 25, 0.08);
+  --acc: #2563eb;
+  --acc-press: #1d4ed8;
+  --card: #fff;
+  --ok: #059669;
+  --warn: #d97706;
+  --radius: 20px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --display: "SF Pro Display", -apple-system, BlinkMacSystemFont, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e12;
+    --ink: #f0f3f1;
+    --mut: #8b9aa3;
+    --line: rgba(255, 255, 255, 0.08);
+    --acc: #3b82f6;
+    --acc-press: #2563eb;
+    --card: #141a21;
+    --ok: #34d399;
+    --warn: #fbbf24;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.4 var(--font);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 6px 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Title — quiet */
+.brand {
+  text-align: center;
+  padding: 2px 0 1px;
+  font: 600 13px/1.2 var(--font);
+  letter-spacing: -0.01em;
+  color: var(--mut);
+}
+
+/* ===== STAGE ===== */
+.stage {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  max-height: min(84dvh, 900px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+@media (min-width: 520px) {
+  .stage { aspect-ratio: 4 / 3; max-height: min(78dvh, 760px); }
+}
+video, canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* Empty / loading message */
+.msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #fff;
+  padding: 28px;
+  background: rgba(0,0,0,.55);
+  font-size: 15px;
+  line-height: 1.45;
+  z-index: 1;
+}
+
+/* Top: only timer + duel when active */
+.hud {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 14px 14px 0;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0,0,0,.7);
+  pointer-events: none;
+  z-index: 2;
+}
+.hud-t {
+  text-align: center;
+  font: 700 34px/1 var(--display);
+  min-height: 0;
+  letter-spacing: -0.03em;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.hud-t.on { opacity: 1; }
+.duel[hidden] { display: none; }
+.duel {
+  margin-top: 8px;
+  background: rgba(0,0,0,.45);
+  border-radius: 14px;
+  padding: 10px 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.duel-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 12px;
+  opacity: .9;
+}
+.duel-row b {
+  font: 700 24px/1 var(--display);
+  letter-spacing: -0.02em;
+}
+.duel .me::before,
+.duel .op::before {
+  content: "";
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+.duel .me::before { background: #60a5fa; }
+.duel .op::before { background: #fb923c; }
+.tug {
+  height: 8px;
+  border-radius: 4px;
+  background: #fb923c;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.tug i {
+  display: block;
+  height: 100%;
+  width: 50%;
+  background: #60a5fa;
+  transition: width .25s ease;
+}
+
+/* Center feedback — the hero */
+.feedback {
+  position: absolute;
+  left: 0; right: 0;
+  top: 42%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(0,0,0,.75);
+  pointer-events: none;
+  z-index: 2;
+  padding: 0 20px;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.stage.camera-ready .feedback { opacity: 1; }
+.pose-banner {
+  position: absolute;
+  z-index: 4;
+  top: 72px;
+  left: 10px;
+  right: 10px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  color: #fff;
+  text-align: center;
+  font-size: clamp(15px, 4vw, 19px);
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: banner-in .18s ease-out;
+}
+.pose-banner[hidden] { display: none; }
+.pose-banner[data-state="ok"] { background: rgba(5, 150, 105, .94); }
+.pose-banner[data-state="bad"] { background: rgba(220, 38, 38, .94); }
+@keyframes banner-in { from { opacity: .6; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.count {
+  font: 700 88px/0.9 var(--display);
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  transition: transform .12s ease;
+}
+.count.pop { transform: scale(1.08); }
+.state {
+  margin-top: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  opacity: .85;
+  letter-spacing: 0.01em;
+}
+.state.down { color: #6ee7b7; opacity: 1; }
+.hint { display: none; }
+.gauge-wrap {
+  margin: 14px auto 0;
+  width: min(160px, 48%);
+}
+.gauge {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.18);
+  overflow: hidden;
+}
+.gauge i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #fff;
+  border-radius: 3px;
+  transition: width .07s linear;
+  opacity: .9;
+}
+
+/* Bottom controls — thumb zone */
+.controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 3;
+  padding: 16px 14px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.4) 55%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.controls-row {
+  display: flex;
+  gap: 8px;
+}
+.pill {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .1s, background .15s, opacity .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pill:active { transform: scale(0.97); }
+.pill:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+.select-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.select-wrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 48px;
+  padding: 0 32px 0 14px;
+  border-radius: 14px;
+  border: 0;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+.stage.rear video, .stage.rear canvas { transform: none; }
+#camWrap { width: 100%; }
+#camWrap select { width: 100%; }
+.select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(255,255,255,.7);
+  transform: translateY(-30%);
+  pointer-events: none;
+}
+.select-wrap select option { color: #111; background: #fff; }
+
+.btn-start {
+  flex: 1;
+  height: 48px;
+  background: #fff;
+  color: #0f1419;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.btn-start.is-on {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,.25);
+}
+
+.btn-race {
+  height: 44px;
+  width: 100%;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  font-size: 14px;
+  border: 1.5px solid rgba(255,255,255,.2);
+}
+.btn-race:disabled { opacity: .4; }
+.btn-surrender {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, .18);
+  color: #fecaca;
+  border: 1.5px solid rgba(248, 113, 113, .65);
+  font-size: 14px;
+  font-weight: 700;
+}
+.btn-surrender[hidden] { display: none; }
+.btn-surrender:not([hidden]) { display: block; }
+
+/* Result */
+.result {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
+  background: rgba(8, 12, 16, 0.94);
+  color: #fff;
+  padding: 28px;
+  backdrop-filter: blur(12px);
+}
+.result[hidden] { display: none; }
+.result h2 {
+  margin: 0;
+  font: 700 36px/1.1 var(--display);
+  letter-spacing: -0.03em;
+}
+.result h2.win { color: #6ee7b7; }
+.result h2.lose { color: #fb923c; }
+.result h2.draw { color: #93c5fd; }
+.rs {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+.rs span { display: block; font-size: 12px; opacity: .7; margin-bottom: 2px; }
+.rs b { font: 700 52px/1 var(--display); letter-spacing: -0.03em; }
+.rs .a b { color: #93c5fd; }
+.rs .b b { color: #fdba74; }
+.result p { margin: 0; font-size: 14px; opacity: .85; }
+.result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.result-actions button {
+  height: 44px;
+  min-width: 120px;
+  border-radius: 14px;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.result-actions .primary { background: #fff; color: #0f1419; }
+.result-actions .ghost {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,.3);
+}
+
+/* ===== BELOW ===== */
+.sheet {
+  background: transparent;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: none;
+}
+.stats[hidden] { display: none !important; }
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  padding: 14px 8px;
+  text-align: center;
+}
+.stat b {
+  display: block;
+  font: 700 22px/1.1 var(--display);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.stat span {
+  font-size: 11px;
+  color: var(--mut);
+  font-weight: 500;
+  margin-top: 2px;
+  display: block;
+}
+.sep {
+  height: 1px;
+  background: var(--line);
+  margin: 0 16px;
+}
+.block {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.block-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mut);
+  letter-spacing: 0.02em;
+}
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+input {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  width: 100%;
+}
+input:focus {
+  outline: none;
+  border-color: var(--acc);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.actions button {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.actions button:active { background: var(--line); }
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--mut);
+  min-height: 20px;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--mut);
+  flex-shrink: 0;
+}
+.dot.on { background: var(--ok); }
+.dot.wait { background: var(--warn); }
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 4px 2px;
+}
+.link {
+  background: none;
+  border: 0;
+  color: var(--mut);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.link:active { opacity: .6; }
+.hint-text { display: none; }
+.duel-settings {
+  margin-top: 3px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  overflow: hidden;
+}
+.duel-settings summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--mut);
+  font-size: 13px;
+  font-weight: 700;
+  list-style-position: inside;
+}
+.duel-settings[open] summary { border-bottom: 1px solid var(--line); }
+.duel-settings .block { padding: 10px 12px; gap: 8px; }
+.duel-settings .block-title { display: none; }
+.duel-settings .fields { flex-direction: row; }
+.duel-settings input { min-width: 0; }
+.duel-settings .status { font-size: 12px; }
+.sheet-actions { display: flex; justify-content: space-between; align-items: center; padding: 1px 4px; }
+@media (max-width: 520px) {
+  main { padding: 4px 5px 10px; gap: 5px; }
+  .stage { max-height: min(84dvh, 900px); border-radius: 16px; }
+  .controls { padding: 13px 10px 11px; gap: 7px; }
+  .btn-start, .select-wrap select { height: 46px; }
+  .btn-race, .btn-surrender { min-height: 42px; height: auto; }
+  .pose-banner { top: 62px; left: 8px; right: 8px; padding: 10px 11px; }
+  .duel-settings .fields { flex-direction: column; }
+}
+
+/* Consistent tactile feedback for every button */
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s cubic-bezier(.2,.8,.2,1), filter .12s ease, box-shadow .12s ease;
+}
+button:not(:disabled):active {
+  transform: translateY(2px) scale(.97);
+  filter: brightness(.9);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.16);
+}
+button:focus-visible {
+  outline: 3px solid rgba(59,130,246,.65);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none !important; }
+}
+@media (max-width: 360px) {
+  .count { font-size: 72px; }
+  .btn-start { font-size: 14px; }
+  .pose-banner { font-size: 15px; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<main>
+  <div class="brand">Гойская падаль соревнуется</div>
+
+  <div class="stage" id="stage">
+    <video id="v" playsinline muted></video>
+    <canvas id="c"></canvas>
+
+    <div class="hud">
+      <div class="hud-t" id="tm"></div>
+      <div class="duel" id="opp" hidden>
+        <div class="duel-row">
+          <span class="me" id="mn">Я</span>
+          <span class="op" id="on">Соперник</span>
+        </div>
+        <div class="tug"><i id="tugme"></i></div>
+        <div class="duel-row">
+          <b id="mc">0</b>
+          <b id="oc">0</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="pose-banner" id="poseBanner" hidden data-state="bad" aria-live="polite"></div>
+
+    <div class="feedback">
+      <div class="count" id="n"></div>
+      <div class="state" id="st">—</div>
+      <div class="hint" id="hint"></div>
+      <div class="gauge-wrap">
+        <div class="gauge"><i id="bar"></i></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <div class="select-wrap">
+          <select id="ex" aria-label="Упражнение">
+            <option value="push">Отжимания</option>
+            <option value="squat">Приседания</option>
+            <option value="situp">Пресс — скручивания</option>
+          </select>
+        </div>
+        <button class="pill btn-start" id="go">Подключить камеру</button>
+      </div>
+      <div class="select-wrap" id="camWrap" hidden><select id="cam" aria-label="Камера"></select></div>
+      <button class="pill btn-race" id="race">Старт</button>
+      <button class="pill btn-surrender" id="surrender" hidden>Сдаться — остановить раунд</button>
+    </div>
+
+    <div class="result" id="res" hidden>
+      <h2 id="rt"></h2>
+      <div class="rs">
+        <div class="a"><span id="rn1">Я</span><b id="rc1">0</b></div>
+        <div class="b" id="side2"><span id="rn2">Соперник</span><b id="rc2">0</b></div>
+      </div>
+      <p id="rb"></p>
+      <div class="result-actions">
+        <button class="primary" id="again">Ещё раз</button>
+        <button class="ghost" id="close">Закрыть</button>
+      </div>
+    </div>
+
+    <div class="msg" id="msg">Нажмите «Подключить камеру» и разрешите доступ</div>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-actions">
+      <button class="link" id="soundToggle" type="button" aria-pressed="true">🔊 Звук: вкл</button>
+      <button class="link" id="rs">Сбросить счёт</button>
+    </div>
+    <details class="duel-settings">
+      <summary>Дуэль — подключить соперника</summary>
+      <div class="block">
+        <div class="fields">
+          <input id="nm" placeholder="Имя" maxlength="20" autocomplete="nickname">
+          <input id="code" placeholder="Код комнаты" maxlength="20" autocomplete="off">
+        </div>
+        <div class="actions">
+          <button id="mk">Создать комнату</button>
+          <button id="jn">Войти в комнату</button>
+        </div>
+        <div class="status">
+          <span class="dot" id="netdot"></span>
+          <span id="nettxt">Введите код комнаты</span>
+        </div>
+      </div>
+    </details>
+    <div class="stats">
+      <div class="stat"><b id="statToday">0</b><span>сегодня</span></div>
+      <div class="stat"><b id="statStreak">0</b><span>дней подряд</span></div>
+      <div class="stat"><b id="statBest">—</b><span>рекорд за 60 с</span></div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+const v = $("v"), c = $("c"), ctx = c.getContext("2d", { alpha: true });
+
+let landmarker = null;
+let running = false;
+let state = "up";
+let count = 0;
+let smooth = null;
+let lastTs = -1;
+let rafId = 0;
+
+// Crunch reps use torso elevation relative to horizontal. A small shoulder
+// curl is enough: reset near 8° and count from about 15° (not a full sit-up).
+const TH = { push: [100, 150], situp: [8, 15] };
+const ex = () => $("ex").value;
+
+function setMsg(t) {
+  const m = $("msg");
+  m.textContent = t || "";
+  m.style.display = t ? "grid" : "none";
+}
+
+function angle(a, b, d) {
+  const r = Math.atan2(d.y - b.y, d.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+  let deg = Math.abs(r * 180 / Math.PI);
+  return deg > 180 ? 360 - deg : deg;
+}
+
+let AC = null;
+let soundEnabled = true;
+const SOUND_KEY = "pu_sound_v1";
+try {
+  const savedSound = localStorage.getItem(SOUND_KEY);
+  if (savedSound !== null) soundEnabled = savedSound === "1";
+} catch (_) {}
+
+function updateSoundButton() {
+  const b = $("soundToggle");
+  if (!b) return;
+  b.textContent = soundEnabled ? "🔊 Звук: вкл" : "🔇 Звук: выкл";
+  b.setAttribute("aria-pressed", String(soundEnabled));
+}
+
+function speak(text, interrupt = false) {
+  if (!soundEnabled || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
+  try {
+    if (interrupt) window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(String(text));
+    utterance.lang = "ru-RU";
+    utterance.rate = 1.12;
+    utterance.pitch = 1;
+    utterance.volume = 0.95;
+    const voices = window.speechSynthesis.getVoices();
+    const ruVoice = voices.find(voice => /^ru([_-]|$)/i.test(voice.lang));
+    if (ruVoice) utterance.voice = ruVoice;
+    window.speechSynthesis.speak(utterance);
+  } catch (_) {}
+}
+
+function unlockSound() {
+  if (!soundEnabled) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+    // Ask the browser to populate its available voices after a user gesture.
+    if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
+  } catch (_) {}
+}
+
+function beep(f = 880, d = 0.1) {
+  if (!soundEnabled) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.14, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + d);
+    o.start(); o.stop(AC.currentTime + d);
+  } catch (_) {}
+}
+
+function setState(s) {
+  state = s;
+  const el = $("st");
+  if (!running) {
+    el.textContent = "—";
+    el.className = "state";
+    return;
+  }
+  el.textContent = s === "down" ? "Вверх" : "Вниз";
+  el.className = "state" + (s === "down" ? " down" : "");
+}
+
+const hist = [];
+let side = 0, dip = 180, lastRep = 0;
+// Draw the complete skeleton, but gate rep counting by the joints needed
+// for the selected exercise. This avoids demanding irrelevant body points.
+const SKELETON_LANDMARKS = [11,12,13,14,15,16,23,24,25,26,27,28];
+const MIN_LANDMARK_VISIBILITY = 0.55;
+let fullPoseFrames = 0;
+let poseArmed = false;
+let poseVisualValid = false;
+let squatBaselineHipY = null;
+let squatBaselineLegLength = null;
+let squatPhase = "standing";
+const med = a => { const s = [...a].sort((x,y)=>x-y); return s[s.length>>1]; };
+function setPoseStatus(message, valid) {
+  poseVisualValid = Boolean(valid);
+  const banner = $("poseBanner");
+  banner.textContent = message || "";
+  banner.hidden = !message;
+  banner.dataset.state = poseVisualValid ? "ok" : "bad";
+}
+const hint = t => {
+  $("hint").textContent = t || "";
+  if (t) setPoseStatus(t, poseVisualValid);
+  else $("poseBanner").hidden = true;
+};
+
+function landmarkIsUsable(lm, i) {
+  const point = lm[i];
+  return Boolean(point &&
+    Number.isFinite(point.x) && Number.isFinite(point.y) &&
+    (point.visibility ?? 0) >= MIN_LANDMARK_VISIBILITY &&
+    point.x >= 0.01 && point.x <= 0.99 &&
+    point.y >= 0.01 && point.y <= ((i === 15 || i === 16) ? 1.02 : 0.99));
+}
+
+function exercisePoseHint(exercise = ex()) {
+  if (exercise === "push") return "Встаньте лицом к камере. Покажите плечи, локти и кисти";
+  if (exercise === "squat") return "Встаньте лицом к камере. Покажите оба бедра, колена и голеностопы";
+  return "Лягте боком к камере. Покажите плечо, таз, колено и стопу";
+}
+
+function hasExercisePose(lm, exercise = ex()) {
+  if (exercise === "push") {
+    // Front view: both shoulder–elbow–wrist chains. Hips and feet are not required,
+    // because in a push-up position they often leave the frame.
+    return [11,12,13,14,15,16].every(i => landmarkIsUsable(lm, i));
+  }
+
+  if (exercise === "squat") {
+    // Front-facing squat: both legs must be visible, so lifting one knee is not enough.
+    return [11,12,23,24,25,26,27,28].every(i => landmarkIsUsable(lm, i));
+  }
+
+  // Side-view crunches need one complete shoulder–hip–knee–ankle chain.
+  const sides = [[11,23,25,27], [12,24,26,28]];
+  const valid = sides.map((group, index) => ({
+    index,
+    ok: group.every(i => landmarkIsUsable(lm, i)),
+    score: group.reduce((sum, i) => sum + (lm[i]?.visibility ?? 0), 0) / group.length
+  })).filter(candidate => candidate.ok).sort((a,b) => b.score - a.score);
+  if (!valid.length) return false;
+  side = valid[0].index;
+  return true;
+}
+
+function disarmPose(message = exercisePoseHint(), label = "Не все нужные точки видны") {
+  poseVisualValid = false;
+  poseArmed = false;
+  fullPoseFrames = 0;
+  state = "up";
+  dip = 180;
+  hist.length = 0;
+  smooth = null;
+  squatBaselineHipY = null;
+  squatBaselineLegLength = null;
+  squatPhase = "standing";
+  $("st").textContent = label;
+  $("st").className = "state";
+  $("bar").style.width = "0%";
+  setPoseStatus(message, false);
+}
+
+function resetPoseGate() {
+  poseVisualValid = false;
+  poseArmed = false;
+  fullPoseFrames = 0;
+  state = "up";
+  dip = 180;
+  hist.length = 0;
+  smooth = null;
+  squatBaselineHipY = null;
+  squatBaselineLegLength = null;
+  squatPhase = "standing";
+  $("bar").style.width = "0%";
+}
+
+function canCountReps(now = performance.now()) {
+  const duelConnected = Boolean(conn && conn.open);
+
+  // Do not let reps accrue invisibly behind the result overlay. In solo mode,
+  // free counting resumes as soon as the user closes the result screen.
+  if (!$("res").hidden) return false;
+
+  // A connected two-player session only scores during its active 60-second round.
+  if (race?.status === "countdown") return false;
+  if (race?.status === "active") return now >= race.start && now < race.end;
+
+  // With only one user in the session, allow free training outside a round.
+  return !duelConnected;
+}
+
+function angle3D(a, b, c) {
+  if (!a || !b || !c || ![a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z].every(Number.isFinite)) return NaN;
+  const ux = a.x - b.x, uy = a.y - b.y, uz = a.z - b.z;
+  const vx = c.x - b.x, vy = c.y - b.y, vz = c.z - b.z;
+  const uLen = Math.hypot(ux, uy, uz), vLen = Math.hypot(vx, vy, vz);
+  if (uLen < 1e-5 || vLen < 1e-5) return NaN;
+  const cosine = Math.max(-1, Math.min(1, (ux*vx + uy*vy + uz*vz) / (uLen*vLen)));
+  return Math.acos(cosine) * 180 / Math.PI;
+}
+
+// Поворот к камере по мировым координатам (метры): не зависит ни от расстояния,
+// ни от угла обзора камеры, в отличие от ширины плеч в долях кадра.
+function facingRatio(w, a, b) {
+  if (!w || !w[a] || !w[b]) return NaN;
+  const dx = w[a].x - w[b].x, dy = w[a].y - w[b].y, dz = w[a].z - w[b].z;
+  const d = Math.hypot(dx, dy, dz);
+  return d < 1e-5 ? NaN : Math.abs(dx) / d;
+}
+
+// Отладка: откройте страницу с #debug в конце адреса, и на видео появятся числа.
+const DEBUG = location.hash === "#debug";
+let dbgEl = null;
+const f2 = x => Number.isFinite(x) ? x.toFixed(2) : "-";
+function dbg(t) {
+  if (!DEBUG) return;
+  if (!dbgEl) {
+    dbgEl = document.createElement("div");
+    dbgEl.style.cssText = "position:absolute;left:6px;top:6px;z-index:9;font:11px/1.3 monospace;color:#0f0;background:rgba(0,0,0,.65);padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre";
+    $("stage").appendChild(dbgEl);
+  }
+  dbgEl.textContent = t;
+}
+
+// Отжимания при виде спереди: средний 3D-угол обоих локтей по мировым координатам.
+function pushAngle3D(w) {
+  if (!w || w.length < 17) return NaN;
+  const l = angle3D(w[11], w[13], w[15]);
+  const r = angle3D(w[12], w[14], w[16]);
+  return Number.isFinite(l) && Number.isFinite(r) ? (l + r) / 2 : NaN;
+}
+
+function process(lm, worldLm) {
+  const now = performance.now();
+  if (!canCountReps(now)) {
+    if (conn && conn.open && (!race || race.status === "finished")) {
+      $("st").textContent = "Ожидание раунда";
+      $("st").className = "state";
+    }
+    return;
+  }
+
+  // Only the joints required for this exercise must be visible and inside
+  // the frame. Losing any required joint invalidates the current repetition.
+  const exercise = ex();
+  if (!hasExercisePose(lm, exercise)) {
+    disarmPose(exercisePoseHint(exercise));
+    return;
+  }
+  fullPoseFrames++;
+  if (fullPoseFrames < 4) {
+    poseArmed = false;
+    hist.length = 0;
+    smooth = null;
+    state = "up";
+    dip = 180;
+    $("st").textContent = "Проверка положения…";
+    $("st").className = "state";
+    setPoseStatus("Не двигайтесь: проверяем положение", false);
+    return;
+  }
+
+  const squat = exercise === "squat";
+  const situp = exercise === "situp";
+  const sets = situp
+    ? [[11,23,25],[12,24,26]]
+    : [[11,13,15],[12,14,16]];
+  const vis = sets.map(q => Math.min(...q.map(i => lm[i].visibility ?? 0)));
+  if (exercise === "push" && vis[1-side] > vis[side] + 0.18) side = 1 - side;
+
+  if (exercise === "push") {
+    // Front-facing push-up check: both shoulders must be visible and clearly
+    // separated; shoulders, elbows, wrists and hips are gated. Knees and feet are not required.
+    const leftShoulder = lm[11], rightShoulder = lm[12];
+    const shoulderFacing = facingRatio(worldLm, 11, 12);
+    const notFacing = Number.isFinite(shoulderFacing)
+      ? shoulderFacing < 0.7
+      : Math.abs(leftShoulder.x - rightShoulder.x) < 0.04;
+    if (notFacing) {
+      disarmPose("Отжимания: развернитесь лицом к камере, чтобы оба плеча были хорошо видны", "Встаньте лицом к камере");
+      return;
+    }
+  }
+
+  if (squat) {
+    // Front-facing squat: require both knees to flex in 3D and the pelvis to
+    // descend. A single raised knee cannot satisfy both conditions.
+    const shoulderFacing = facingRatio(worldLm, 11, 12), hipFacing = facingRatio(worldLm, 23, 24);
+    const turned = Number.isFinite(shoulderFacing) && Number.isFinite(hipFacing)
+      ? (shoulderFacing < 0.7 || hipFacing < 0.6)
+      : (Math.abs(lm[11].x - lm[12].x) < 0.04 || Math.abs(lm[23].x - lm[24].x) < 0.015);
+    if (turned) {
+      disarmPose("Встаньте прямо лицом к камере, не боком", "Повернитесь лицом к камере");
+      return;
+    }
+    if (!worldLm || worldLm.length < 29) {
+      disarmPose("Не удалось оценить положение обоих коленей. Отойдите немного дальше от камеры", "Не видно положение коленей");
+      return;
+    }
+
+    const leftKnee = angle3D(worldLm[23], worldLm[25], worldLm[27]);
+    const rightKnee = angle3D(worldLm[24], worldLm[26], worldLm[28]);
+    if (!Number.isFinite(leftKnee) || !Number.isFinite(rightKnee)) {
+      disarmPose("Покажите оба бедра, колена и голеностопы целиком", "Не все точки распознаны");
+      return;
+    }
+
+    const hipY = (lm[23].y + lm[24].y) / 2;
+    const leftLegLength = Math.hypot(lm[23].x - lm[27].x, lm[23].y - lm[27].y);
+    const rightLegLength = Math.hypot(lm[24].x - lm[28].x, lm[24].y - lm[28].y);
+    const legLength = (leftLegLength + rightLegLength) / 2;
+    dbg("squat\nL " + Math.round(leftKnee) + "  R " + Math.round(rightKnee) + "\nleg " + f2(legLength) + "  face " + f2(shoulderFacing) + "/" + f2(hipFacing));
+    if (!Number.isFinite(legLength) || legLength < 0.10) {
+      disarmPose("Подойдите чуть ближе или поставьте камеру ниже, чтобы ноги занимали больше места в кадре", "Подойдите ближе");
+      return;
+    }
+
+    if (!poseArmed) {
+      if (leftKnee < 150 || rightKnee < 150) {
+        poseVisualValid = false;
+        $("st").textContent = "Выпрямитесь";
+        $("st").className = "state";
+        setPoseStatus("Встаньте прямо, расправьте обе ноги и смотрите в камеру", false);
+        return;
+      }
+      squatBaselineHipY = hipY;
+      squatBaselineLegLength = legLength;
+      squatPhase = "standing";
+      poseArmed = true;
+      state = "up";
+      setState("up");
+      setPoseStatus("Положение правильное — приседайте обеими ногами", true);
+      return;
+    }
+
+    const pelvisDrop = (hipY - squatBaselineHipY) / squatBaselineLegLength;
+    dbg("squat " + squatPhase + "\nL " + Math.round(leftKnee) + "  R " + Math.round(rightKnee) + "\ndrop " + Math.round(pelvisDrop * 100) + "%  leg " + f2(legLength));
+    const bothKneesBent = leftKnee < 145 && rightKnee < 145;
+    const bothKneesStraight = leftKnee > 152 && rightKnee > 152;
+    $("bar").style.width = Math.max(0, Math.min(100, pelvisDrop / 0.22 * 100)) + "%";
+
+    if (squatPhase === "standing") {
+      // Adapt the standing reference slightly while the user is clearly upright.
+      if (pelvisDrop < 0.035 && bothKneesStraight) {
+        squatBaselineHipY = squatBaselineHipY * 0.98 + hipY * 0.02;
+        squatBaselineLegLength = squatBaselineLegLength * 0.98 + legLength * 0.02;
+      }
+      if (bothKneesBent && pelvisDrop >= 0.09) {
+        squatPhase = "lowered";
+        state = "down";
+        $("st").textContent = "Вставайте";
+        $("st").className = "state down";
+        setPoseStatus("Хорошо! Теперь полностью выпрямитесь", true);
+      } else if ((leftKnee < 145) !== (rightKnee < 145)) {
+        setPoseStatus("Сгибайте обе ноги одновременно — не поднимайте одно колено", false);
+      } else if (pelvisDrop > 0.035 && !bothKneesBent) {
+        setPoseStatus("Опускайте таз вниз и сгибайте оба колена", false);
+      } else if (bothKneesBent && pelvisDrop < 0.09) {
+        setPoseStatus("Опустите таз немного ниже — пока амплитуда недостаточная", false);
+      }
+      return;
+    }
+
+    if (squatPhase === "lowered") {
+      if (bothKneesStraight && pelvisDrop <= 0.045) {
+        squatPhase = "standing";
+        state = "up";
+        setState("up");
+        const repTime = performance.now();
+        if (repTime - lastRep >= 420 && canCountReps(repTime) && hasExercisePose(lm, "squat")) {
+          lastRep = repTime;
+          setPoseStatus("Приседание засчитано", true);
+          count++;
+          $("n").textContent = count;
+          $("n").classList.remove("pop");
+          void $("n").offsetWidth;
+          $("n").classList.add("pop");
+          beep(920, 0.09);
+          if (race && race.status === "active" && conn && conn.open) send({ t: "n", n: count });
+          addRep();
+          renderOpp();
+          updateStatsUI();
+        }
+      } else if (!bothKneesBent && pelvisDrop < 0.07) {
+        setPoseStatus("Опустите таз и согните оба колена — затем выпрямитесь", false);
+      }
+      return;
+    }
+  }
+
+  // Любая неожиданная фаза приседания не должна попадать в общий код ниже (в TH нет squat).
+  if (squat) { squatPhase = "standing"; return; }
+
+  let situpLift = null;
+  if (situp) {
+    const shoulder = lm[side ? 12 : 11];
+    const hip = lm[side ? 24 : 23];
+    const knee = lm[side ? 26 : 25];
+    const ankle = lm[side ? 28 : 27];
+    // 0° is lying flat. Count a small shoulder curl at about 15°;
+    // do not require the head or chest to approach the knees.
+    situpLift = Math.atan2(Math.abs(shoulder.y - hip.y), Math.abs(shoulder.x - hip.x)) * 180 / Math.PI;
+    const kneeAngle = angle(hip, knee, ankle);
+    if (kneeAngle < 45 || kneeAngle > 145) {
+      disarmPose("Лягте на спину, согните колени и поставьте стопы на пол", "Согните колени");
+      return;
+    }
+  }
+
+
+  const measure = situp
+    ? situpLift
+    : exercise === "push"
+      ? pushAngle3D(worldLm)
+      : angle(...sets[side].map(i => lm[i]));
+  if (!Number.isFinite(measure)) {
+    disarmPose(exercisePoseHint(exercise), "Не все точки распознаны");
+    return;
+  }
+  const [DOWN, UP] = TH[exercise];
+
+  // After camera start or any lost/hidden landmark, require a fresh neutral
+  // start position before accepting a complete, continuously visible rep.
+  if (!poseArmed) {
+    const inStartPosition = situp ? measure <= DOWN : measure >= UP;
+    if (!inStartPosition) {
+      poseVisualValid = false;
+      $("st").textContent = "Исходное положение";
+      $("st").className = "state";
+      setPoseStatus(situp
+        ? "Опустите плечи почти на пол. Колени согнуты"
+        : exercise === "push"
+          ? "Верхнее положение: руки выпрямлены"
+          : "Выпрямитесь и встаньте в исходное положение", false);
+      return;
+    }
+    poseArmed = true;
+    state = situp ? "down" : "up";
+    dip = 180;
+    hist.length = 0;
+    smooth = measure;
+    setState(state);
+    setPoseStatus(situp
+      ? "Положение правильное — слегка поднимайте плечи"
+      : "Положение правильное — начинайте", true);
+    return;
+  }
+
+  hist.push(measure);
+  if (hist.length > 5) hist.shift();
+  const a = med(hist);
+  smooth = smooth === null ? a : smooth * 0.55 + a * 0.45;
+  const gaugeScale = situp ? 25 : 180;
+  $("bar").style.width = Math.min(100, (smooth / gaugeScale) * 100) + "%";
+
+  if (state === "up") {
+    dip = Math.min(dip, smooth);
+    if (smooth < DOWN) { setState("down"); }
+    else if (smooth > UP) {
+      if (dip >= DOWN && dip < DOWN + 32) {
+        setPoseStatus(situp ? "Опустите плечи ниже перед следующим повтором" : "Увеличьте амплитуду", true);
+      }
+      dip = 180;
+    }
+  } else if (smooth > UP) {
+    const repTime = performance.now();
+    setState("up"); dip = 180;
+    if (repTime - lastRep < 420) return;
+    // Re-check scoring permission at the exact moment of completion.
+    if (!canCountReps(repTime) || !hasExercisePose(lm, ex())) {
+      disarmPose("Подсчёт остановлен: необходимые для упражнения точки должны оставаться видимыми до конца повтора");
+      return;
+    }
+    lastRep = repTime;
+    setPoseStatus(situp ? "Хорошо! Небольшого скручивания достаточно" : "Положение правильное", true);
+    count++;
+    $("n").textContent = count;
+    $("n").classList.remove("pop");
+    void $("n").offsetWidth;
+    $("n").classList.add("pop");
+    beep(920, 0.09);
+    if (race && race.status === "active" && conn && conn.open) {
+      send({ t: "n", n: count });
+    }
+    addRep();
+    renderOpp();
+    updateStatsUI();
+  }
+}
+function draw(lm) {
+  const w = v.videoWidth, h = v.videoHeight;
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  ctx.clearRect(0, 0, w, h);
+  const links = [[11,13],[13,15],[12,14],[14,16],[11,12],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]];
+  ctx.lineWidth = Math.max(3, w * 0.005);
+  const poseColor = poseVisualValid ? "#22e66b" : "#ff3b3b";
+  ctx.strokeStyle = poseColor;
+  ctx.lineCap = "round";
+  ctx.shadowColor = poseColor;
+  ctx.shadowBlur = Math.max(4, w * 0.006);
+  for (const [a,b] of links) {
+    const p = lm[a], q = lm[b];
+    if ((p.visibility??0) < MIN_LANDMARK_VISIBILITY || (q.visibility??0) < MIN_LANDMARK_VISIBILITY) continue;
+    ctx.beginPath();
+    ctx.moveTo(p.x*w, p.y*h);
+    ctx.lineTo(q.x*w, q.y*h);
+    ctx.stroke();
+  }
+  ctx.fillStyle = poseColor;
+  const r = Math.max(4, w * 0.008);
+  for (const i of SKELETON_LANDMARKS) {
+    const p = lm[i];
+    if ((p.visibility??0) < MIN_LANDMARK_VISIBILITY) continue;
+    ctx.beginPath();
+    ctx.arc(p.x*w, p.y*h, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function loop() {
+  if (!running) return;
+  rafId = requestAnimationFrame(loop);
+  if (v.readyState < 2 || v.currentTime === lastTs) return;
+  lastTs = v.currentTime;
+  const res = landmarker.detectForVideo(v, performance.now());
+  if (res.landmarks?.[0]) {
+    process(res.landmarks[0], res.worldLandmarks?.[0]);
+    draw(res.landmarks[0]);
+  } else {
+    ctx.clearRect(0, 0, c.width, c.height);
+    disarmPose(exercisePoseHint(), "Тело не распознано");
+  }
+}
+
+function cameraErrorText(e) {
+  const name = e && e.name;
+  if (!window.isSecureContext && location.hostname !== "localhost")
+    return "Камера доступна только на защищённой странице HTTPS (или localhost). Откройте приложение по HTTPS.";
+  if (!navigator.mediaDevices?.getUserMedia)
+    return "Браузер не поддерживает доступ к камере. Откройте страницу в актуальном Chrome или Safari.";
+  if (name === "NotAllowedError" || name === "SecurityError")
+    return "Браузер запретил доступ к камере. Разрешите камеру для этого сайта в настройках браузера и попробуйте снова.";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError")
+    return "Камера не найдена. Подключите камеру или проверьте, видит ли её система.";
+  if (name === "NotReadableError" || name === "TrackStartError")
+    return "Не удалось включить камеру: возможно, её уже использует другое приложение. Закройте его и повторите попытку.";
+  if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError")
+    return "Камера не поддерживает выбранный режим. Попробуйте другую камеру.";
+  if (name === "AbortError")
+    return "Запуск камеры был прерван. Нажмите «Подключить камеру» ещё раз.";
+  return "Не удалось подключить камеру" + (name ? " (" + name + ")" : ". Проверьте разрешения браузера и подключение камеры.");
+}
+
+const camSel = $("cam");
+function videoConstraints() {
+  // Формат 3:4, как вчера: он использует всю матрицу. Кадр 9:16 на iPhone обрезает сенсор по высоте
+  // (картинка выглядит приближенной), а для приседаний нужна вся высота кадра.
+  const base = { width: { ideal: 480 }, height: { ideal: 640 } };
+  return camSel.value
+    ? { ...base, deviceId: { exact: camSel.value } }
+    : { ...base, facingMode: "user" };
+}
+async function openStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: videoConstraints(), audio: false });
+  } catch (e) {
+    if (!camSel.value) throw e;
+    camSel.value = ""; camSel.dataset.chosen = "";
+    return await navigator.mediaDevices.getUserMedia({ video: videoConstraints(), audio: false });
+  }
+}
+// Если камера умеет zoom меньше 1 (сверхширокий угол), включаем минимум; на других телефонах ничего не меняется.
+async function widenView(stream) {
+  const track = stream.getVideoTracks()[0];
+  $("stage").classList.toggle("rear", track.getSettings?.().facingMode === "environment");
+  try {
+    const caps = track.getCapabilities?.() || {};
+    if (caps.zoom && Number.isFinite(caps.zoom.min) && caps.zoom.min < (track.getSettings().zoom || 1)) {
+      await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min }] });
+    }
+  } catch (_) {}
+}
+async function refreshCameras() {
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+    camSel.innerHTML = "";
+    camSel.add(new Option("Фронтальная (авто)", ""));
+    devs.forEach((d, i) => camSel.add(new Option(d.label || "Камера " + (i + 1), d.deviceId)));
+    camSel.value = camSel.dataset.chosen || "";
+    $("camWrap").hidden = devs.length < 2;
+  } catch (_) {}
+}
+camSel.onchange = () => {
+  camSel.dataset.chosen = camSel.value;
+  if (running) { stop(); start(); }
+};
+
+async function start() {
+  const button = $("go");
+  button.disabled = true;
+  let stream = null;
+  let phase = "camera";
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("media-unsupported");
+    if (!window.isSecureContext && location.hostname !== "localhost") throw new Error("secure-context");
+    phase = "model";
+    if (!landmarker) {
+      setMsg("Загрузка распознавания…");
+      const fs = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      const model = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+      const make = d => PoseLandmarker.createFromOptions(fs, {
+        baseOptions: { modelAssetPath: model, delegate: d },
+        runningMode: "VIDEO", numPoses: 1,
+        minPoseDetectionConfidence: .55, minPosePresenceConfidence: .55, minTrackingConfidence: .55
+      });
+      try { landmarker = await make("GPU"); } catch { landmarker = await make("CPU"); }
+    }
+    phase = "camera";
+    setMsg("Ожидаем разрешение на камеру…");
+    stream = await openStream();
+    v.srcObject = stream;
+    await v.play();
+    await widenView(stream);
+    refreshCameras();
+    setMsg("");
+    running = true;
+    $("stage").classList.add("camera-ready");
+    $("n").textContent = count;
+    setState("up");
+    button.textContent = "Отключить камеру";
+    button.classList.add("is-on");
+    lastTs = -1;
+    loop();
+  } catch (e) {
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    if (v.srcObject) {
+      v.srcObject.getTracks().forEach(track => track.stop());
+      v.srcObject = null;
+    }
+    console.error("Camera connection failed:", e);
+    if (phase === "model") {
+      setMsg("Не удалось загрузить модуль распознавания. Проверьте интернет-соединение и обновите страницу.");
+    } else {
+      setMsg(e && (e.message === "media-unsupported" || e.message === "secure-context") ? cameraErrorText(null) : cameraErrorText(e));
+    }
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function stop() {
+  running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = 0;
+  if (v.srcObject) {
+    v.srcObject.getTracks().forEach(t => t.stop());
+    v.srcObject = null;
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+  resetPoseGate();
+  $("stage").classList.remove("camera-ready");
+  setPoseStatus("", false);
+  $("go").textContent = "Подключить камеру";
+  $("go").classList.remove("is-on");
+  $("st").textContent = "—";
+  $("st").className = "state";
+  setMsg("Нажмите «Подключить камеру» и разрешите доступ");
+}
+
+$("go").onclick = () => {
+  if (running) stop();
+  else { unlockSound(); start(); }
+};
+
+$("soundToggle").onclick = () => {
+  soundEnabled = !soundEnabled;
+  try { localStorage.setItem(SOUND_KEY, soundEnabled ? "1" : "0"); } catch (_) {}
+  updateSoundButton();
+  if (soundEnabled) {
+    unlockSound();
+    beep(880, 0.08);
+  } else if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+};
+updateSoundButton();
+
+$("rs").onclick = () => {
+  if (race && (race.status === "countdown" || race.status === "active")) {
+    setNet("Сначала завершите текущий раунд", "wait");
+    return;
+  }
+  count = 0; race = null; resetPoseGate(); hint("");
+  clearInterval(tick); tick = null;
+  $("tm").textContent = ""; $("tm").classList.remove("on");
+  $("res").hidden = true;
+  myReady = false;
+  $("race").disabled = false; $("race").textContent = "Старт";
+  $("surrender").hidden = true;
+  $("ex").disabled = false;
+  $("n").textContent = 0;
+  setState("up");
+  send({ t: "n", n: 0 });
+  renderOpp();
+  updateStatsUI();
+};
+
+$("nm").onchange = () => { send({ t: "hi", name: myName() }); renderOpp(); };
+
+const KEY = "pu_hist_v2", BEST_KEY = "pu_best_v2";
+const dk = (d = new Date()) => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+
+function loadH() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } }
+function addRep() {
+  const h = loadH(), t = dk();
+  h[t] = h[t] || { push: 0, squat: 0, situp: 0 };
+  h[t][ex()]++;
+  try { localStorage.setItem(KEY, JSON.stringify(h)); } catch {}
+}
+function streak(h) {
+  const has = d => { const x = h[dk(d)]; return x && (x.push || 0) + (x.squat || 0) + (x.situp || 0) > 0; };
+  const d = new Date();
+  if (!has(d)) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (has(d)) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+function loadBest() { try { return JSON.parse(localStorage.getItem(BEST_KEY) || "{}"); } catch { return {}; } }
+function saveBest(b) { try { localStorage.setItem(BEST_KEY, JSON.stringify(b)); } catch {} }
+
+function updateStatsUI() {
+  const h = loadH(), t = h[dk()] || { push: 0, squat: 0, situp: 0 }, s = streak(h), best = loadBest(), e = ex();
+  $("statToday").textContent = (t.push || 0) + (t.squat || 0) + (t.situp || 0);
+  $("statStreak").textContent = s;
+  $("statBest").textContent = best[e] || "—";
+}
+$("ex").onchange = () => {
+  if (race && (race.status === "countdown" || race.status === "active")) return;
+  $("rs").click();
+  resetPoseGate();
+  updateStatsUI();
+};
+updateStatsUI();
+
+/* Online */
+let peer = null, conn = null, oppName = "Соперник", oppCount = 0;
+let race = null, tick = null, isHost = false, myReady = false, oppReady = false, oppFinal = false;
+
+const myName = () => $("nm").value.trim() || "Я";
+const send = m => { if (conn && conn.open) conn.send(m); };
+
+function setNet(t, status = "") {
+  $("netdot").className = "dot" + (status ? " " + status : "");
+  $("nettxt").textContent = t;
+}
+
+function renderOpp() {
+  $("mn").textContent = myName();
+  $("mc").textContent = count;
+  $("on").textContent = oppName;
+  $("oc").textContent = oppCount;
+  const t = count + oppCount;
+  $("tugme").style.width = (t ? count / t * 100 : 50) + "%";
+}
+
+function bind(cn) {
+  conn = cn;
+  cn.on("open", () => {
+    setNet("Подключено", "on");
+    $("opp").hidden = false;
+    $("race").disabled = false;
+    send({ t: "hi", name: myName() });
+    send({ t: "n", n: count });
+  });
+  cn.on("data", m => {
+    if (!m || typeof m !== "object") return;
+    if (m.t === "hi") oppName = String(m.name || "Соперник").slice(0, 20);
+    if (m.t === "n") oppCount = Math.max(0, m.n | 0);
+    if (m.t === "ready") { oppReady = true; setNet("Соперник готов", "wait"); tryLaunch(); }
+    if (m.t === "final") { oppFinal = true; oppCount = Math.max(0, m.n | 0); }
+    if (m.t === "surrender") {
+      oppCount = Math.max(0, m.n | 0);
+      if (race && (race.status === "countdown" || race.status === "active")) {
+        finishRace("surrender", "opponent");
+      }
+    }
+    if (m.t === "start") {
+      if (EXN[m.ex]) { $("ex").value = m.ex; updateStatsUI(); }
+      beginRace();
+      if (!running) setNet("Раунд начался — подключите камеру", "wait");
+    }
+    renderOpp();
+  });
+  cn.on("close", () => {
+    if (conn !== cn) return;
+    setNet("Связь с соперником потеряна", "");
+    myReady = oppReady = false;
+    $("opp").hidden = true;
+    if (race && (race.status === "countdown" || race.status === "active")) {
+      finishRace("stopped");
+      setNet("Связь с соперником потеряна — раунд остановлен", "");
+    }
+    if (!race || race.status === "finished") {
+      $("race").disabled = false;
+      $("race").textContent = "Старт";
+    }
+  });
+  cn.on("error", e => setNet("Ошибка соединения: " + (e?.type || "проверьте интернет"), ""));
+}
+
+function room(host) {
+  if (typeof Peer === "undefined") {
+    setNet("Не загрузился модуль онлайн-связи. Проверьте интернет и обновите страницу.", "");
+    return;
+  }
+  const code = $("code").value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (code.length < 3) { setNet("Код: минимум 3 символа"); return; }
+  const id = "goypadal-" + code;
+  if (peer) try { peer.destroy(); } catch {}
+  conn = null;
+  isHost = host; myReady = oppReady = false;
+
+  if (host) {
+    peer = new Peer(id);
+    peer.on("connection", c => {
+      if (conn && conn.open) { c.on("open", () => c.close()); return; }
+      bind(c);
+    });
+    peer.on("open", () => setNet("Ждём соперника…", "wait"));
+  } else {
+    peer = new Peer();
+    peer.on("open", () => {
+      setNet("Подключение…", "wait");
+      bind(peer.connect(id, { reliable: true }));
+    });
+  }
+  peer.on("error", e => {
+    const messages = {
+      "unavailable-id": "Этот код комнаты уже занят. Выберите другой код.",
+      "peer-unavailable": "Комната не найдена. Проверьте код или попросите соперника создать комнату.",
+      "network": "Проблема с интернет-соединением. Проверьте сеть и попробуйте снова.",
+      "server-error": "Сервер онлайн-связи временно недоступен. Попробуйте позже.",
+      "socket-error": "Не удалось связаться с сервером онлайн-связи.",
+      "socket-closed": "Соединение с сервером онлайн-связи закрыто.",
+      "disconnected": "Связь с сервером потеряна. Переподключитесь.",
+      "browser-incompatible": "Браузер не поддерживает онлайн-соединение.",
+      "webrtc": "Браузеру не удалось установить связь с соперником. Проверьте сеть и разрешения."
+    };
+    setNet(messages[e.type] || ("Ошибка подключения: " + (e.type || "неизвестная ошибка")), "");
+  });
+}
+
+const EXN = { push: "Отжимания", squat: "Приседания", situp: "Скручивания на пресс" };
+
+function beginRace() {
+  resetPoseGate();
+  myReady = oppReady = false; oppFinal = false;
+  $("res").hidden = true;
+  $("race").textContent = "Подготовка…";
+  $("race").disabled = true;
+  $("surrender").hidden = false;
+  $("surrender").disabled = false;
+  $("ex").disabled = true;
+  count = 0; oppCount = 0; smooth = null; hist.length = 0; dip = 180; hint("");
+  lastRep = 0;
+  $("n").textContent = 0; setState("up"); renderOpp();
+  const t0 = performance.now() + 5000;
+  race = {
+    start: t0, end: t0 + 60000, ex: ex(), status: "countdown",
+    endReason: null, surrenderedBy: null, shown: false, started: false, lastSec: null, lastTenSec: null, overAt: 0
+  };
+  clearInterval(tick);
+  tick = setInterval(updateTimer, 80);
+  updateTimer();
+}
+
+function launch() { send({ t: "start", ex: ex() }); beginRace(); }
+function tryLaunch() { if (myReady && oppReady && isHost) launch(); }
+
+function finishRace(reason, surrenderedBy = null) {
+  if (!race || race.status === "finished") return;
+  race.status = "finished";
+  resetPoseGate();
+  race.endReason = reason;
+  race.surrenderedBy = surrenderedBy;
+  race.overAt = performance.now();
+  race.shown = true;
+  clearInterval(tick); tick = null;
+  $("tm").classList.remove("on");
+  $("surrender").hidden = true;
+  $("race").disabled = false;
+  $("race").textContent = "Старт";
+  $("ex").disabled = false;
+  if (reason === "surrender" && surrenderedBy === "opponent") speak("Соперник сдался. Вы победили", true);
+  showResult(Boolean(conn && conn.open));
+}
+
+function surrenderRace() {
+  if (!race || (race.status !== "countdown" && race.status !== "active")) return;
+  const duel = Boolean(conn && conn.open);
+  if (duel) send({ t: "surrender", n: count });
+  finishRace(duel ? "surrender" : "stopped", "me");
+  speak(duel ? "Вы сдались. Соперник победил" : "Раунд остановлен", true);
+  if (!duel) setNet("Раунд остановлен. В одиночном режиме сдача не влияет на соперника.", "");
+}
+
+function updateTimer() {
+  if (!race) return;
+  const now = performance.now(), el = $("tm");
+  if (race.status !== "finished" && now < race.start) {
+    race.status = "countdown";
+    const sec = Math.ceil((race.start - now) / 1000);
+    el.textContent = sec;
+    $("race").textContent = "Старт через " + sec;
+    el.classList.add("on");
+    if (race.lastSec !== sec) {
+      race.lastSec = sec;
+      if (sec <= 3) { beep(620, 0.08); speak(sec, true); }
+    }
+  } else if (race.status !== "finished" && now < race.end) {
+    race.status = "active";
+    if (!race.started) { race.started = true; beep(1100, 0.35); speak("Старт", true); }
+    $("race").textContent = "Раунд идёт";
+    const remaining = Math.ceil((race.end - now) / 1000);
+    el.textContent = remaining;
+    el.classList.add("on");
+    if (remaining <= 10 && remaining > 0 && race.lastTenSec !== remaining) {
+      race.lastTenSec = remaining;
+      speak(remaining, true);
+    }
+  } else if (race.status !== "finished") {
+    // Freeze scoring immediately at the deadline, before waiting for the peer.
+    race.status = "finished";
+    resetPoseGate();
+    race.endReason = "time";
+    race.overAt = now;
+    $("surrender").hidden = true;
+    $("race").textContent = "Раунд завершён";
+    $("race").disabled = true;
+    $("ex").disabled = false;
+    el.textContent = "0";
+    el.classList.add("on");
+    beep(1100, 0.5);
+    speak("Время вышло", true);
+    send({ t: "final", n: count });
+  }
+
+  if (race.status === "finished" && race.endReason === "time") {
+    const duel = Boolean(conn && conn.open);
+    if (!race.shown && (!duel || oppFinal || now > race.overAt + 1800)) {
+      race.shown = true;
+      clearInterval(tick); tick = null;
+      showResult(duel);
+    }
+  }
+}
+
+function showResult(duel) {
+  if (!race) return;
+  const e = race.ex, best = loadBest(), mine = count, opp = oppCount;
+  let title, cls, note;
+  if (race.endReason === "surrender") {
+    if (race.surrenderedBy === "me") {
+      title = "Вы сдались"; cls = "lose";
+      note = duel ? "Соперник побеждает по сдаче" : "Раунд остановлен досрочно";
+    } else {
+      title = "Победа!"; cls = "win";
+      note = "Соперник сдался — вы победили";
+    }
+    note += " · " + EXN[e];
+  } else if (race.endReason === "stopped") {
+    title = "Раунд остановлен"; cls = "";
+    note = EXN[e] + " · досрочное завершение";
+  } else {
+    if (!duel) { title = "Готово"; cls = ""; }
+    else if (mine > opp) { title = "Победа"; cls = "win"; }
+    else if (mine < opp) { title = "Поражение"; cls = "lose"; }
+    else { title = "Ничья"; cls = "draw"; }
+    note = EXN[e] + " · 60 с";
+  }
+  if (mine > (best[e] || 0) && race.endReason !== "surrender" && race.endReason !== "stopped") {
+    note += " · новый рекорд"; best[e] = mine; saveBest(best);
+  } else if (best[e] && race.endReason !== "surrender" && race.endReason !== "stopped") {
+    note += " · рекорд " + best[e];
+  }
+  $("rt").textContent = title; $("rt").className = cls;
+  $("rn1").textContent = myName(); $("rc1").textContent = mine;
+  $("side2").hidden = !duel; $("rn2").textContent = oppName; $("rc2").textContent = opp;
+  $("rb").textContent = note;
+  $("res").hidden = false;
+  $("tm").classList.remove("on");
+  $("race").disabled = false;
+  $("race").textContent = "Старт";
+  $("surrender").hidden = true;
+  $("ex").disabled = false;
+  updateStatsUI();
+}
+$("mk").onclick = () => room(true);
+$("jn").onclick = () => room(false);
+
+$("race").onclick = () => {
+  if (!running) { setNet("Сначала подключите камеру", "wait"); return; }
+  if (race && race.status !== "finished") return;
+  if (!(conn && conn.open)) { launch(); return; }
+  myReady = true;
+  $("race").textContent = "Ждём соперника…";
+  $("race").disabled = true;
+  send({ t: "ready" });
+  tryLaunch();
+};
+
+$("surrender").onclick = surrenderRace;
+
+$("again").onclick = () => {
+  $("res").hidden = true; race = null;
+  $("tm").textContent = ""; $("tm").classList.remove("on");
+  $("race").disabled = false; $("race").textContent = "Старт";
+  $("surrender").hidden = true; $("ex").disabled = false;
+  $("race").click();
+};
+$("close").onclick = () => {
+  $("res").hidden = true; race = null;
+  $("tm").textContent = ""; $("tm").classList.remove("on");
+  $("race").disabled = false; $("race").textContent = "Старт";
+  $("surrender").hidden = true; $("ex").disabled = false;
+};
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && AC?.state === "running") AC.suspend();
+  else if (AC?.state === "suspended") AC.resume();
+});
+</script>
+</body>
+</html>
